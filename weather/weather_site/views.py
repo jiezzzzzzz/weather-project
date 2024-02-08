@@ -1,6 +1,7 @@
 import requests
 from django.http import JsonResponse
 from geopy.geocoders import Nominatim
+from django.core.cache import cache
 from environs import Env
 
 env = Env()
@@ -17,6 +18,11 @@ def get_weather(request):
             },
             status=400
         )
+
+    cached_data = cache.get(city_name)
+
+    if cached_data:
+        return cached_data
 
     try:
         locator = Nominatim(user_agent="myapp")
@@ -43,13 +49,16 @@ def get_weather(request):
                 pressure = fact.get('pressure_mm')
                 wind_speed = fact.get('wind_speed')
 
-                return JsonResponse(
-                    {
+                weather = {
                         'temperature': temperature,
                         'pressure': pressure,
                         'wind_speed': wind_speed
-                    }
-                    )
+                }
+
+                cache.set(city_name, JsonResponse(weather), timeout=1800)
+
+                return JsonResponse(weather)
+
             else:
                 return JsonResponse(
                     {
