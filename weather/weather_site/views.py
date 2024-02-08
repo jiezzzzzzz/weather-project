@@ -13,7 +13,7 @@ def get_weather(request):
     if not city_name:
         return JsonResponse(
             {
-                'error': 'Отсутствует город в запросе'
+                'error': 'City parameter is required'
             },
             status=400
         )
