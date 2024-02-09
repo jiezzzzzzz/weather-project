@@ -1,77 +1,87 @@
-import requests
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from django.http import JsonResponse
-from geopy.geocoders import Nominatim
 from django.core.cache import cache
+from geopy.geocoders import Nominatim
+import requests
+from django.conf import settings
 from environs import Env
 
 env = Env()
 env.read_env()
 
 
-def get_weather(request):
-    city_name = request.GET.get('city')
+class WeatherAPIView(APIView):
 
-    if not city_name:
-        return JsonResponse(
-            {
-                'error': 'City parameter is required'
-            },
-            status=400
-        )
+    def get(self, request):
+        city_name = request.GET.get('city')
 
-    cached_data = cache.get(city_name)
+        if not city_name:
+            return Response(
+                {
+                    'error': 'City parameter is required'
+                },
+                status=400
+            )
 
-    if cached_data:
-        return cached_data
+        cached_data = cache.get(city_name)
 
-    try:
-        locator = Nominatim(user_agent="myapp")
-        location = locator.geocode(city_name, language='ru')
+        if cached_data:
+            return Response(cached_data)
 
-        if location:
-            lat = location.latitude
-            lon = location.longitude
-            api_key = env('API_KEY')
-            url = (f'https://api.weather.yandex.ru/v2/forecast/'
-                   f'?lat={lat}&lon={lon}&lang=ru_RU&limit=1&hours=false&extra=false')
+        try:
+            locator = Nominatim(user_agent="myapp")
+            location = locator.geocode(city_name, language='ru')
 
-            headers = {
-                'X-Yandex-API-Key': api_key
-            }
+            if location:
+                lat = location.latitude
+                lon = location.longitude
+                api_key = env('API_KEY')
+                url = (f'https://api.weather.yandex.ru/v2/forecast/'
+                       f'?lat={lat}&lon={lon}&lang=ru_RU&limit=1&hours=false&extra=false')
 
-            response = requests.get(url, headers=headers)
+                headers = {'X-Yandex-API-Key': api_key}
+                response = requests.get(url, headers=headers)
 
-            if response.status_code == 200:
-                data = response.json()
-                fact = data['fact']
+                if response.status_code == 200:
+                    data = response.json()
+                    fact = data['fact']
 
-                temperature = fact.get('temp')
-                pressure = fact.get('pressure_mm')
-                wind_speed = fact.get('wind_speed')
+                    temperature = fact.get('temp')
+                    pressure = fact.get('pressure_mm')
+                    wind_speed = fact.get('wind_speed')
 
-                weather = {
+                    weather = {
                         'temperature': temperature,
                         'pressure': pressure,
                         'wind_speed': wind_speed
-                }
+                    }
 
-                cache.set(city_name, JsonResponse(weather), timeout=1800)
+                    cache.set(city_name, weather, timeout=1800)
 
-                return JsonResponse(weather)
+                    return Response(weather)
+
+                else:
+                    return Response(
+                        {
+                            'error': f'Failed to fetch weather data - Yandex response code: '
+                                     f'{response.status_code}'
+                        },
+                        status=response.status_code
+                    )
 
             else:
-                return JsonResponse(
+                return Response(
                     {
-                        'error': 'Failed to fetch weather data - Yandex response code: '
-                                 + str(response.status_code)
+                        'error': 'City not found'
                     },
-                    status=response.status_code
+                    status=404
                 )
 
-    except Exception as e:
-        return JsonResponse(
-            {
-                'error': str(e)
-            },
-            status=500
-        )
+        except Exception as e:
+            return Response(
+                {
+                    'error': str(e)
+                },
+                status=500
+            )
