@@ -11,7 +11,7 @@
 4. создать файл <code>.env</code> и заполнить его своими данными примерно так же, как указано в примере (файл <code>.env.example</code>). перед этим, конечно, нужно получить апи ключ яндекса (момент про него - ниже) и токен бота.
    ссылку на апи можно оставить на локалхосте, так как в докер ничего не завернуто
 5. <code>python manage.py runserver</code>
-6. <code>python bot.py</code>
+6. <code>python telegram-weather_bot.py</code>
 7. готово! вы восхитительны!
 
 <h2>Interesting moments</h2>
